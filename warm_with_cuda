@@ -10,7 +10,7 @@
 __global__
 void calculateMatrix(double* arr, double* arr_new, size_t N)
 {
-    size_t i = blockIdx.x;
+    size_t i = blockIdx.x;     //вычисляем индекс элемента
     size_t j = threadIdx.x;
 
     if(!(blockIdx.x == 0 || threadIdx.x == 0)){
@@ -19,9 +19,11 @@ void calculateMatrix(double* arr, double* arr_new, size_t N)
                     }
 }
 
+
+// Вычисляем матрицу ошибок
 __global__
 void getErrorMatrix(double* arr, double* arr_new, double* output_arr) {
-	size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+	size_t idx = blockIdx.x * blockDim.x + threadIdx.x;     
 
 	if(!(blockIdx.x == 0 || threadIdx.x == 0)) {
 		output_arr[idx] = std::abs(arr_new[idx] - arr[idx]);
@@ -63,27 +65,17 @@ int main(int argc, char** argv) {
 	size_t temp_Storage_Size = 0;
     int size = N * N;
 
-	cudaError_t cudaStatus_1 = cudaMalloc((void**)(&device_arr_Ptr), sizeof(double) * size);
-	cudaError_t cudaStatus_2 = cudaMalloc((void**)(&device_arr_new_Ptr), sizeof(double) * size);
-	cudaMalloc((void**)&device_Error, sizeof(double));
-	cudaStatus_1 = cudaMalloc((void**)&error_arr, sizeof(double) * size);
+	cudaMalloc((void**)(&device_arr_Ptr), sizeof(double) * size);    //  Выделил память на видеокарте
+	cudaMalloc((void**)(&device_arr_new_Ptr), sizeof(double) * size);
+	cudaMalloc((void**)&device_Error, sizeof(double));                                       
+	cudaStatus_1 = cudaMalloc((void**)&error_arr, sizeof(double) * size);        //Выделение памяти под матрицу ошибок 
 	
-	if (cudaStatus_1 != 0 || cudaStatus_2 != 0)
-	{
-		std::cout << "Memory allocation error" << std::endl;
-		return -1;
-	}
+	cudaMemcpy(device_arr_Ptr, arr, sizeof(double) * size, cudaMemcpyHostToDevice);       //Скопировал матрицы на видеокарту
+	cudaMemcpy(device_arr_new_Ptr, arr_new, sizeof(double) * size, cudaMemcpyHostToDevice);
 
-	cudaStatus_1 = cudaMemcpy(device_arr_Ptr, arr, sizeof(double) * size, cudaMemcpyHostToDevice);
-	cudaStatus_2 = cudaMemcpy(device_arr_new_Ptr, arr_new, sizeof(double) * size, cudaMemcpyHostToDevice);
-
-	if (cudaStatus_1 != 0 || cudaStatus_2 != 0)
-	{
-		std::cout << "Memory transfering error" << std::endl;
-		return -1;
-	}
-
-    cub::DeviceReduce::Max(temp_Storage, temp_Storage_Size, error_arr, device_Error, size);
+	// Для работы функции редукции, ей необходимо выделить память. При  первом запуске функция возвращает количество памяти, которое ей надо выделить.
+	// Для этого так же нужно, чтобы указатель на массив был NULL
+	cub::DeviceReduce::Max(temp_Storage, temp_Storage_Size, error_arr, device_Error, size);
 	cudaMalloc((void**)&temp_Storage, temp_Storage_Size);
 
 	int iter = 0;
@@ -94,12 +86,12 @@ int main(int argc, char** argv) {
 std::cout << N << " " << accuracy <<  " " << std::endl;
 	for (; ((iter < ITER_MAX) && (error > accuracy)); iter++) {
 
-        calculateMatrix<<<N - 1, N - 1>>>(device_arr_Ptr, device_arr_new_Ptr, N);
+        calculateMatrix<<<N - 1, N - 1>>>(device_arr_Ptr, device_arr_new_Ptr, N);   //Запускаем ядро для рассчета функций
 
 		if (iter % 100 == 0) {
 			getErrorMatrix<<<N - 1, N - 1>>>(device_arr_Ptr, device_arr_new_Ptr, error_arr);
-			cub::DeviceReduce::Max(temp_Storage, temp_Storage_Size, error_arr, device_Error, size);
-			cudaMemcpy(&error, device_Error, sizeof(double), cudaMemcpyDeviceToHost);
+			cub::DeviceReduce::Max(temp_Storage, temp_Storage_Size, error_arr, device_Error, size);  //находит максимальную ошибку
+			cudaMemcpy(&error, device_Error, sizeof(double), cudaMemcpyDeviceToHost);   //копирует ошибку на хост
 		}
 
         std::swap(device_arr_Ptr, device_arr_new_Ptr);
@@ -109,14 +101,6 @@ std::cout << N << " " << accuracy <<  " " << std::endl;
 
 	std::cout << "Time: " << 1.0 * (end - start) / CLOCKS_PER_SEC << std::endl;
 	std::cout << "Iter: " << iter << " Error: " << error << std::endl;
-
-/*cudaMemcpy(arr, device_arr_Ptr, sizeof(double) * size, cudaMemcpyDeviceToHost);
-    for (int i = 0; i < N; i++){
-        for (int j = 0; j < N; j++){
-            std::cout << arr[i * N + j] << " ";
-        }
-        std::cout << std::endl;
-    }*/
 
 	cudaFree(device_arr_Ptr);
 	cudaFree(device_arr_new_Ptr);
