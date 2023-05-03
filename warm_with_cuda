@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
 
 	memcpy(arr_new, arr, N * N * sizeof(double));
 
-    cudaSetDevice(3);
+    cudaSetDevice(3);   //Выбор 3 девайса
 
     double* device_arr_Ptr, *device_arr_new_Ptr, *device_Error, *error_arr, *temp_Storage = NULL;
 	size_t temp_Storage_Size = 0;
@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
 	cudaMalloc((void**)(&device_arr_Ptr), sizeof(double) * size);    //  Выделил память на видеокарте
 	cudaMalloc((void**)(&device_arr_new_Ptr), sizeof(double) * size);
 	cudaMalloc((void**)&device_Error, sizeof(double));                                       
-	cudaStatus_1 = cudaMalloc((void**)&error_arr, sizeof(double) * size);        //Выделение памяти под матрицу ошибок 
+	cudaMalloc((void**)&error_arr, sizeof(double) * size);        //Выделение памяти под матрицу ошибок 
 	
 	cudaMemcpy(device_arr_Ptr, arr, sizeof(double) * size, cudaMemcpyHostToDevice);       //Скопировал матрицы на видеокарту
 	cudaMemcpy(device_arr_new_Ptr, arr_new, sizeof(double) * size, cudaMemcpyHostToDevice);
