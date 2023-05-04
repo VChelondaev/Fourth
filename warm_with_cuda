@@ -13,7 +13,7 @@ void calculateMatrix(double* arr, double* arr_new, size_t N)
     size_t i = blockIdx.x;     //вычисляем индекс элемента
     size_t j = threadIdx.x;
 
-    if(!(blockIdx.x == 0 || threadIdx.x == 0)){
+    if(!(blockIdx.x == 0 || threadIdx.x == 0)){        //Проверка на границы массива
                     int n = i * N + j;
                     arr_new[n] = 0.25 * (arr[n - 1] + arr[n + 1] + arr[(i - 1) * N + j] + arr[(i + 1) * N + j]);
                     }
@@ -85,7 +85,8 @@ int main(int argc, char** argv) {
 
 std::cout << N << " " << accuracy <<  " " << std::endl;
 	for (; ((iter < ITER_MAX) && (error > accuracy)); iter++) {
-
+             //Учесть кол-во потоков в рамках потокового блокаб желателоьно не фиксированно
+	     //Использовать CUDA граф для 100 итераций
         calculateMatrix<<<N - 1, N - 1>>>(device_arr_Ptr, device_arr_new_Ptr, N);   //Запускаем ядро для рассчета функций
 
 		if (iter % 100 == 0) {
