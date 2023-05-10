@@ -101,18 +101,31 @@ int main(int argc, char** argv) {
 	clock_t start = clock();
 
 	std::cout << N << " " << accuracy <<  " " << std::endl;
-	for (; ((iter < ITER_MAX) && (error > accuracy)); iter++) {
-             //Учесть кол-во потоков в рамках потокового блокаб желателоьно не фиксированно
-	     //Использовать CUDA граф для 100 итераций
-        calculateMatrix<<<gridDim, blockDim>>>(device_arr_Ptr, device_arr_new_Ptr, N);   //Запускаем ядро для рассчета функций
+	for (; ((iter < ITER_MAX) && (error > accuracy)); iter++) {	
+		if (isGraphCreated) {
+			cudaGraphLaunch(instance, stream);
+			
+			cudaMemcpyAsync(error, deviceError, sizeof(double), cudaMemcpyDeviceToHost, stream);    //копирует ошибку на хост
 
-		if (iter % 100 == 0) {
-			getErrorMatrix<<<gridDim, blockDim>>>(device_arr_Ptr, device_arr_new_Ptr, error_arr, N);
-			cub::DeviceReduce::Max(temp_Storage, temp_Storage_Size, error_arr, device_Error, size);  //находит максимальную ошибку
-			cudaMemcpy(&error, device_Error, sizeof(double), cudaMemcpyDeviceToHost);   //копирует ошибку на хост
+			cudaStreamSynchronize(stream);
+
+			iter += 100;
 		}
-
-        std::swap(device_arr_Ptr, device_arr_new_Ptr);
+		else {
+			cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);   //Начинаем захватывать граф
+			for(size_t i = 0; i < 50; i++)
+			{
+				calculateMatrix<<<gridDim, blockDim, 0, stream>>>(device_arr_Ptr, device_arr_new_Ptr, N);   //Запускаем ядро для рассчета функций
+				calculateMatrix<<<gridDim, blockDim, 0, stream>>>(device_arr_new_Ptr, device_arr_Ptr, N);
+			}
+			// Расчитываем ошибку каждую сотую итерацию
+			getErrorMatrix<<<threads * blocks * blocks, threads,  0, stream>>>(device_arr_Ptr, device_arr_new_Ptr, error_arr, N);
+			cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, totalSize, stream);   //находит максимальную ошибку
+	
+			cudaStreamEndCapture(stream, &graph);   //Заканчиваем захватывать граф
+			cudaGraphInstantiate(&instance, graph, NULL, NULL, 0);
+			isGraphCreated = true;
+  		}
 	}
 
 	clock_t end = clock();
