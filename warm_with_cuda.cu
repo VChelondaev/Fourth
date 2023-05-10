@@ -120,7 +120,7 @@ int main(int argc, char** argv) {
 			}
 			// Расчитываем ошибку каждую сотую итерацию
 			getErrorMatrix<<<threads * blocks * blocks, threads,  0, stream>>>(device_arr_Ptr, device_arr_new_Ptr, error_arr, N);
-			cub::DeviceReduce::Max(tempStorage, tempStorageSize, errorMatrix, deviceError, totalSize, stream);   //находит максимальную ошибку
+			cub::DeviceReduce::Max(temp_Storage, temp_Storage_Size, error_arr, device_Error, size);   //находит максимальную ошибку
 	
 			cudaStreamEndCapture(stream, &graph);   //Заканчиваем захватывать граф
 			cudaGraphInstantiate(&instance, graph, NULL, NULL, 0);
