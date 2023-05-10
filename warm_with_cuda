@@ -84,17 +84,30 @@ int main(int argc, char** argv) {
 
 	int iter = 0;
 	double error = 1.0;
+	
+	bool isGraphCreated = false;
+	cudaStream_t stream;
+	cudaStreamCreate(&stream);
+	cudaGraph_t graph;
+	cudaGraphExec_t instance;
+	
+	size_t threads = std::min(N, 1024);
+	
+	unsigned int blocks = size / threads;
+
+	dim3 blockDim(threads / 16, threads / 16);
+    	dim3 gridDim(blocks * 16, blocks * 16);
 
 	clock_t start = clock();
 
-std::cout << N << " " << accuracy <<  " " << std::endl;
+	std::cout << N << " " << accuracy <<  " " << std::endl;
 	for (; ((iter < ITER_MAX) && (error > accuracy)); iter++) {
              //Учесть кол-во потоков в рамках потокового блокаб желателоьно не фиксированно
 	     //Использовать CUDA граф для 100 итераций
-        calculateMatrix<<<N - 1, N - 1>>>(device_arr_Ptr, device_arr_new_Ptr, N);   //Запускаем ядро для рассчета функций
+        calculateMatrix<<<gridDim, blockDim>>>(device_arr_Ptr, device_arr_new_Ptr, N);   //Запускаем ядро для рассчета функций
 
 		if (iter % 100 == 0) {
-			getErrorMatrix<<<N - 1, N - 1>>>(device_arr_Ptr, device_arr_new_Ptr, error_arr, N);
+			getErrorMatrix<<<gridDim, blockDim>>>(device_arr_Ptr, device_arr_new_Ptr, error_arr, N);
 			cub::DeviceReduce::Max(temp_Storage, temp_Storage_Size, error_arr, device_Error, size);  //находит максимальную ошибку
 			cudaMemcpy(&error, device_Error, sizeof(double), cudaMemcpyDeviceToHost);   //копирует ошибку на хост
 		}
