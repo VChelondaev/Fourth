@@ -8,12 +8,15 @@
 
 
 __global__
-void calculateMatrix(double* arr, double* arr_new, size_t N)
+void calculateMatrix(double* arr, double* arr_new, size_t size)
 {
-    size_t i = blockIdx.x;     //вычисляем индекс элемента
-    size_t j = threadIdx.x;
-
-    if(!(blockIdx.x == 0 || threadIdx.x == 0)){        //Проверка на границы массива
+        //вычисляем индекс элемента
+    unsigned int j = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int i = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    if (i * size + j > size * size) return;
+    
+    if(!((j == 0 || i == 0 || j == size - 1 || i == size - 1))){        //Проверка на границы массива
                     int n = i * N + j;
                     arr_new[n] = 0.25 * (arr[n - 1] + arr[n + 1] + arr[(i - 1) * N + j] + arr[(i + 1) * N + j]);
                     }
@@ -22,12 +25,13 @@ void calculateMatrix(double* arr, double* arr_new, size_t N)
 
 // Вычисляем матрицу ошибок
 __global__
-void getErrorMatrix(double* arr, double* arr_new, double* output_arr) {
+void getErrorMatrix(double* arr, double* arr_new, double* output_arr, size_t size) {
 	size_t idx = blockIdx.x * blockDim.x + threadIdx.x;     
+	
+	if (idx > size * size) return;
+	
+	output_arr[idx] = std::abs(arr_new[idx] - arr[idx]);
 
-	if(!(blockIdx.x == 0 || threadIdx.x == 0)) {
-		output_arr[idx] = std::abs(arr_new[idx] - arr[idx]);
-	}
 }
 
 
@@ -61,9 +65,9 @@ int main(int argc, char** argv) {
 
     cudaSetDevice(3);   //Выбор 3 девайса
 
-    double* device_arr_Ptr, *device_arr_new_Ptr, *device_Error, *error_arr, *temp_Storage = NULL;
+        double* device_arr_Ptr, *device_arr_new_Ptr, *device_Error, *error_arr, *temp_Storage = NULL;
 	size_t temp_Storage_Size = 0;
-    int size = N * N;
+        int size = N * N;
 
 	cudaMalloc((void**)(&device_arr_Ptr), sizeof(double) * size);    //  Выделил память на видеокарте
 	cudaMalloc((void**)(&device_arr_new_Ptr), sizeof(double) * size);
@@ -90,7 +94,7 @@ std::cout << N << " " << accuracy <<  " " << std::endl;
         calculateMatrix<<<N - 1, N - 1>>>(device_arr_Ptr, device_arr_new_Ptr, N);   //Запускаем ядро для рассчета функций
 
 		if (iter % 100 == 0) {
-			getErrorMatrix<<<N - 1, N - 1>>>(device_arr_Ptr, device_arr_new_Ptr, error_arr);
+			getErrorMatrix<<<N - 1, N - 1>>>(device_arr_Ptr, device_arr_new_Ptr, error_arr, N);
 			cub::DeviceReduce::Max(temp_Storage, temp_Storage_Size, error_arr, device_Error, size);  //находит максимальную ошибку
 			cudaMemcpy(&error, device_Error, sizeof(double), cudaMemcpyDeviceToHost);   //копирует ошибку на хост
 		}
