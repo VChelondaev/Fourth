@@ -8,15 +8,15 @@
 
 
 __global__
-void calculateMatrix(double* arr, double* arr_new, size_t size)
+void calculateMatrix(double* arr, double* arr_new, size_t N)
 {
         //вычисляем индекс элемента
     unsigned int j = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i = blockIdx.y * blockDim.y + threadIdx.y;
     
-    if (i * size + j > size * size) return;
+    if (i * N + j > N * N) return;
     
-    if(!((j == 0 || i == 0 || j == size - 1 || i == size - 1))){        //Проверка на границы массива
+    if(!((j == 0 || i == 0 || j == N - 1 || i == N - 1))){        //Проверка на границы массива
                     int n = i * N + j;
                     arr_new[n] = 0.25 * (arr[n - 1] + arr[n + 1] + arr[(i - 1) * N + j] + arr[(i + 1) * N + j]);
                     }
@@ -25,10 +25,10 @@ void calculateMatrix(double* arr, double* arr_new, size_t size)
 
 // Вычисляем матрицу ошибок
 __global__
-void getErrorMatrix(double* arr, double* arr_new, double* output_arr, size_t size) {
+void getErrorMatrix(double* arr, double* arr_new, double* output_arr, size_t N) {
 	size_t idx = blockIdx.x * blockDim.x + threadIdx.x;     
 	
-	if (idx > size * size) return;
+	if (idx > N * N) return;
 	
 	output_arr[idx] = std::abs(arr_new[idx] - arr[idx]);
 
