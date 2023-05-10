@@ -103,11 +103,11 @@ int main(int argc, char** argv) {
 	std::cout << N << " " << accuracy <<  " " << std::endl;
 	for (; ((iter < ITER_MAX) && (error > accuracy)); iter++) {	
 		if (isGraphCreated) {
-			cudaGraphLaunch(instance, stream);
+			cudaGraphLaunch(instance, stream);    //Запуск графа
 			
-			cudaMemcpyAsync(error, deviceError, sizeof(double), cudaMemcpyDeviceToHost, stream);    //копирует ошибку на хост
+			cudaMemcpy(error, deviceError, sizeof(double), cudaMemcpyDeviceToHost, stream);    //копирует ошибку на хост
 
-			cudaStreamSynchronize(stream);
+			cudaStreamSynchronize(stream);    //Ждём, когда закончится выполнение потока stream
 
 			iter += 100;
 		}
@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
 			cub::DeviceReduce::Max(temp_Storage, temp_Storage_Size, error_arr, device_Error, size);   //находит максимальную ошибку
 	
 			cudaStreamEndCapture(stream, &graph);   //Заканчиваем захватывать граф
-			cudaGraphInstantiate(&instance, graph, NULL, NULL, 0);
+			cudaGraphInstantiate(&instance, graph, NULL, NULL, 0);  //Инициализация графа
 			isGraphCreated = true;
   		}
 	}
